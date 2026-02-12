@@ -9,9 +9,9 @@ export function PlantCard({ plant }: PlantCardProps) {
   return (
     <Link
       href={`/plants/${plant.slug}`}
-      className="card-surface group flex h-full flex-col overflow-hidden transition-transform duration-200 hover:-translate-y-1"
+      className="plant-glass-card group flex h-full flex-col overflow-hidden transition-transform duration-200 hover:-translate-y-1"
     >
-      <div className="aspect-[16/10] overflow-hidden bg-[var(--earth-100)]">
+      <div className="aspect-[16/10] overflow-hidden bg-white/20">
         <img
           src={plant.hero_image_url}
           alt={plant.name}

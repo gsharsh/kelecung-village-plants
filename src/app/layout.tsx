@@ -7,6 +7,7 @@ import "@fontsource/plus-jakarta-sans/500.css";
 import "@fontsource/plus-jakarta-sans/600.css";
 import "@fontsource/plus-jakarta-sans/700.css";
 import "./globals.css";
+import { SilkBackground } from "@/components/SilkBackground";
 
 export const metadata: Metadata = {
   title: "Kelecung's Village",
@@ -20,7 +21,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <SilkBackground />
+        <div className="app-content">{children}</div>
+      </body>
     </html>
   );
 }
