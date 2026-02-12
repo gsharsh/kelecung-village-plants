@@ -1,8 +1,3 @@
-const requiredVars = [
-  "NEXT_PUBLIC_SUPABASE_URL",
-  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-] as const;
-
 function readEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -13,9 +8,21 @@ function readEnv(name: string): string {
 }
 
 export function getPublicSupabaseEnv() {
+  // Keep direct NEXT_PUBLIC_* access so Next can inline these values into client bundles.
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url) {
+    throw new Error("Missing required environment variable: NEXT_PUBLIC_SUPABASE_URL");
+  }
+
+  if (!anonKey) {
+    throw new Error("Missing required environment variable: NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  }
+
   return {
-    url: readEnv("NEXT_PUBLIC_SUPABASE_URL"),
-    anonKey: readEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
+    url,
+    anonKey,
   };
 }
 
@@ -32,7 +39,5 @@ export function getAdminEmail() {
 }
 
 export function assertPublicEnv() {
-  for (const key of requiredVars) {
-    readEnv(key);
-  }
+  getPublicSupabaseEnv();
 }
