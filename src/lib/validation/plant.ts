@@ -138,14 +138,6 @@ function validateInedibleRules(input: PlantDocumentInput, errors: string[]) {
       errors.push("Use blocks must include a use type.");
       break;
     }
-
-    const hasDetails = Boolean(parsed.data.details?.trim());
-    const hasSteps = parsed.data.steps.length > 0;
-
-    if (!hasDetails && !hasSteps) {
-      errors.push("Each use block needs details text or at least one step.");
-      break;
-    }
   }
 }
 
