@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { BlockEditor } from "@/components/admin/BlockEditor";
+import { CopyLinkButton } from "@/components/CopyLinkButton";
 import type { EditableBlock } from "@/components/admin/types";
 import { PlantBlocksRenderer } from "@/components/public/PlantBlocksRenderer";
+import { normalizeSlug } from "@/lib/slug";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import {
   ALLOWED_BLOCK_KINDS_BY_TYPE,
@@ -17,7 +19,6 @@ import {
 
 interface PlantFormValues {
   type: PlantType;
-  slug: string;
   name: string;
   scientific_name: string;
   short_description: string;
@@ -68,8 +69,12 @@ export function PlantForm({ plantId, initialPlant, initialBlocks = [] }: PlantFo
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUploadingHero, setIsUploadingHero] = useState(false);
+  const [heroFileLabel, setHeroFileLabel] = useState("No file selected.");
+  const [siteOrigin, setSiteOrigin] = useState(() => (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/+$/, ""));
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const heroFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [blocks, setBlocks] = useState<EditableBlock[]>(() => {
     if (!initialBlocks.length) {
@@ -96,7 +101,6 @@ export function PlantForm({ plantId, initialPlant, initialBlocks = [] }: PlantFo
   } = useForm<PlantFormValues>({
     defaultValues: {
       type: initialPlant?.type ?? "edible",
-      slug: initialPlant?.slug ?? "",
       name: initialPlant?.name ?? "",
       scientific_name: initialPlant?.scientific_name ?? "",
       short_description: initialPlant?.short_description ?? "",
@@ -105,21 +109,29 @@ export function PlantForm({ plantId, initialPlant, initialBlocks = [] }: PlantFo
   });
 
   const currentType = watch("type");
-  const slugValue = watch("slug");
   const nameValue = watch("name");
   const scientificNameValue = watch("scientific_name");
   const shortDescriptionValue = watch("short_description");
   const heroImageUrl = watch("hero_image_url");
-  const slugLocked = Boolean(publishedAt);
+  const trimmedName = nameValue.trim();
+  const slugPreview = trimmedName ? normalizeSlug(trimmedName) : "yourplantname";
+  const linkPath = `/plants/${slugPreview}`;
+  const publicLink = siteOrigin ? `${siteOrigin}${linkPath}` : linkPath;
 
   useEffect(() => {
     setBlocks((previous) => previous.filter((block) => ALLOWED_BLOCK_KINDS_BY_TYPE[currentType].includes(block.block_kind)));
   }, [currentType]);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setSiteOrigin(window.location.origin);
+    }
+  }, []);
+
   const previewPlant = {
     id: plantId || "preview",
     type: currentType,
-    slug: slugValue,
+    slug: slugPreview,
     name: nameValue,
     scientific_name: scientificNameValue,
     short_description: shortDescriptionValue,
@@ -136,7 +148,7 @@ export function PlantForm({ plantId, initialPlant, initialBlocks = [] }: PlantFo
 
     const body = {
       scope,
-      plantId: plantId ?? `draft-${previewPlant.slug || "plant"}`,
+      plantId: plantId ?? `draft-${slugPreview || "plant"}`,
       blockId: blockClientId,
       fileName: file.name,
       mimeType: file.type,
@@ -178,12 +190,17 @@ export function PlantForm({ plantId, initialPlant, initialBlocks = [] }: PlantFo
   }
 
   async function onUploadHeroImage(file: File) {
+    setIsUploadingHero(true);
+    setHeroFileLabel(file.name);
+
     try {
       const url = await uploadFile(file, "hero");
       setValue("hero_image_url", url, { shouldDirty: true });
       setNotice("Hero image uploaded.");
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Failed to upload hero image.");
+    } finally {
+      setIsUploadingHero(false);
     }
   }
 
@@ -394,12 +411,6 @@ export function PlantForm({ plantId, initialPlant, initialBlocks = [] }: PlantFo
             </div>
 
             <div>
-              <label className="field-label">Slug</label>
-              <input className="text-input" disabled={slugLocked} {...register("slug")} />
-              {slugLocked ? <p className="mt-1 text-xs text-[var(--text-700)]">Slug locked after first publish.</p> : null}
-            </div>
-
-            <div>
               <label className="field-label">Name</label>
               <input className="text-input" {...register("name")} />
             </div>
@@ -408,6 +419,24 @@ export function PlantForm({ plantId, initialPlant, initialBlocks = [] }: PlantFo
               <label className="field-label">Scientific name</label>
               <input className="text-input" {...register("scientific_name")} />
             </div>
+
+            <div className="sm:col-span-2 rounded-xl border border-[var(--line)] bg-[var(--surface-1)] p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-700)]">
+                Public link preview
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <code className="rounded-md bg-white px-3 py-2 text-sm text-[var(--text-900)]">{publicLink}</code>
+                <CopyLinkButton
+                  value={publicLink}
+                  label="Copy link"
+                  className="px-3 py-2 text-sm"
+                  disabled={!trimmedName}
+                />
+              </div>
+              <p className="mt-2 text-xs text-[var(--text-700)]">
+                Plant names must be unique. The URL is generated automatically from the plant name.
+              </p>
+            </div>
           </div>
 
           <div className="mt-4">
@@ -415,7 +444,7 @@ export function PlantForm({ plantId, initialPlant, initialBlocks = [] }: PlantFo
             <textarea className="text-area" {...register("short_description")} />
           </div>
 
-          <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
             <div>
               <label className="field-label">Hero image URL</label>
               <input className="text-input" {...register("hero_image_url")} />
@@ -424,7 +453,9 @@ export function PlantForm({ plantId, initialPlant, initialBlocks = [] }: PlantFo
             <div>
               <label className="field-label">Upload hero image</label>
               <input
+                ref={heroFileInputRef}
                 type="file"
+                className="sr-only"
                 accept="image/png,image/jpeg,image/webp,image/gif"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
@@ -436,6 +467,20 @@ export function PlantForm({ plantId, initialPlant, initialBlocks = [] }: PlantFo
                   event.target.value = "";
                 }}
               />
+              <div className="rounded-xl border border-dashed border-[rgba(0,130,54,0.35)] bg-[var(--leaf-100)]/45 p-3">
+                <p className="text-xs text-[var(--text-700)]">PNG, JPG, WEBP, or GIF. Max size: 5MB.</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="primary-btn px-3 py-2 text-sm"
+                    onClick={() => heroFileInputRef.current?.click()}
+                    disabled={isUploadingHero}
+                  >
+                    {isUploadingHero ? "Uploading..." : "Select image"}
+                  </button>
+                  <span className="text-sm text-[var(--text-700)]">{heroFileLabel}</span>
+                </div>
+              </div>
             </div>
           </div>
 

@@ -1,23 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { normalizeSlug, pickFirstFreeSlug } from "@/lib/slug";
+import { normalizePlantName, normalizeSlug } from "@/lib/slug";
 
 describe("slug utilities", () => {
-  it("normalizes names to URL-safe slugs", () => {
-    expect(normalizeSlug("  Laksa Leaf Plant  ")).toBe("laksa-leaf-plant");
+  it("normalizes names to URL-safe slugs without spaces", () => {
+    expect(normalizeSlug("  Laksa Leaf Plant  ")).toBe("laksaleafplant");
   });
 
-  it("returns base slug when not taken", () => {
-    expect(pickFirstFreeSlug("banana", ["pepper", "ginger"]))
-      .toBe("banana");
+  it("returns plant when slug normalization empties the value", () => {
+    expect(normalizeSlug("___")).toBe("plant");
   });
 
-  it("adds numeric suffix when slug already exists", () => {
-    expect(pickFirstFreeSlug("banana", ["banana", "banana-2", "banana-3"]))
-      .toBe("banana-4");
-  });
-
-  it("ignores similarly named but different slugs", () => {
-    expect(pickFirstFreeSlug("banana", ["bananas", "banana-leaf"]))
-      .toBe("banana");
+  it("normalizes plant names for stable uniqueness checks", () => {
+    expect(normalizePlantName("   Aloe    Vera   ")).toBe("Aloe Vera");
   });
 });

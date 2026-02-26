@@ -5,7 +5,6 @@ import { validatePlantForPublish } from "@/lib/validation/plant";
 function buildBasePlant(type: PlantDocumentInput["type"]): PlantDocumentInput {
   return {
     type,
-    slug: type === "edible" ? "moringa" : "hibiscus",
     name: type === "edible" ? "Moringa" : "Hibiscus",
     scientific_name: "Plantus testus",
     short_description: "A useful village plant.",

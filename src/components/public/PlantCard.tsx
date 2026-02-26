@@ -22,7 +22,7 @@ export function PlantCard({ plant }: PlantCardProps) {
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-xl font-semibold text-[var(--text-900)]">{plant.name}</h2>
+            <h2 className="text-2xl font-semibold leading-tight text-[var(--text-900)]">{plant.name}</h2>
             <p className="mt-1 text-sm italic text-[var(--text-700)]">{plant.scientific_name}</p>
           </div>
           <span className="botanical-pill shrink-0">{plant.type === "edible" ? "Edible" : "Inedible"}</span>
