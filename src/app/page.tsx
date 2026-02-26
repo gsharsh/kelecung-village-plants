@@ -25,7 +25,7 @@ export default async function Home({ searchParams }: { searchParams: HomeSearchP
   return (
     <div className="hero-glow min-h-screen">
       <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        <header className="mb-10 overflow-hidden rounded-[2rem] border border-[var(--line)] bg-white/85 p-8 shadow-sm backdrop-blur">
+        <header className="mb-6 overflow-hidden rounded-[1.35rem] border border-[var(--line)] bg-white/85 p-5 shadow-sm backdrop-blur">
           {isDemoPreview ? (
             <p className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
               Preview mode: showing demo content until Supabase env vars are configured.
@@ -34,8 +34,8 @@ export default async function Home({ searchParams }: { searchParams: HomeSearchP
           <p className="mb-3 inline-flex rounded-full border border-[rgba(0,130,54,0.25)] bg-[var(--leaf-100)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-700)]">
             Kelecung&apos;s Village
           </p>
-          <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-[var(--text-900)] sm:text-5xl">
-            Explore the plants of Kelecung, from edible harvests to inedible village uses.
+          <h1 className="max-w-none whitespace-nowrap text-[clamp(1.55rem,3.2vw,2.55rem)] font-semibold tracking-tight text-[var(--text-900)]">
+            Explore the plants of Kelecung
           </h1>
           <p className="mt-4 max-w-2xl text-[var(--text-700)]">
             Discover botanical stories, recipes, medicinal uses, and practical village knowledge in one curated guide.

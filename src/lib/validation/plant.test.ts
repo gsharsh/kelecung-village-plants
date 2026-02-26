@@ -5,7 +5,6 @@ import { validatePlantForPublish } from "@/lib/validation/plant";
 function buildBasePlant(type: PlantDocumentInput["type"]): PlantDocumentInput {
   return {
     type,
-    slug: type === "edible" ? "moringa" : "hibiscus",
     name: type === "edible" ? "Moringa" : "Hibiscus",
     scientific_name: "Plantus testus",
     short_description: "A useful village plant.",
@@ -46,7 +45,7 @@ describe("validatePlantForPublish", () => {
     expect(result.isValid).toBe(true);
   });
 
-  it("rejects inedible plant use block with no details and no steps", () => {
+  it("accepts inedible plant use block with no details and no steps", () => {
     const plant = buildBasePlant("inedible");
     plant.blocks.push({
       block_kind: "inedible_use",
@@ -58,8 +57,22 @@ describe("validatePlantForPublish", () => {
     });
 
     const result = validatePlantForPublish(plant);
+    expect(result.isValid).toBe(true);
+  });
+
+  it("rejects inedible plant use block without useType", () => {
+    const plant = buildBasePlant("inedible");
+    plant.blocks.push({
+      block_kind: "inedible_use",
+      payload: {
+        details: "",
+        steps: [],
+      },
+    });
+
+    const result = validatePlantForPublish(plant);
     expect(result.isValid).toBe(false);
-    expect(result.errors).toContain("Each use block needs details text or at least one step.");
+    expect(result.errors).toContain("Use blocks must include a use type.");
   });
 
   it("accepts inedible plant with valid use block", () => {

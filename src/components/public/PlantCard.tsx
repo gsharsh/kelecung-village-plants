@@ -9,9 +9,9 @@ export function PlantCard({ plant }: PlantCardProps) {
   return (
     <Link
       href={`/plants/${plant.slug}`}
-      className="card-surface group flex h-full flex-col overflow-hidden transition-transform duration-200 hover:-translate-y-1"
+      className="plant-glass-card group flex h-full flex-col overflow-hidden transition-transform duration-200 hover:-translate-y-1"
     >
-      <div className="aspect-[16/10] overflow-hidden bg-[var(--earth-100)]">
+      <div className="aspect-[16/10] overflow-hidden bg-white/20">
         <img
           src={plant.hero_image_url}
           alt={plant.name}
@@ -22,7 +22,7 @@ export function PlantCard({ plant }: PlantCardProps) {
       <div className="flex flex-1 flex-col gap-3 p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-xl font-semibold text-[var(--text-900)]">{plant.name}</h2>
+            <h2 className="text-2xl font-semibold leading-tight text-[var(--text-900)]">{plant.name}</h2>
             <p className="mt-1 text-sm italic text-[var(--text-700)]">{plant.scientific_name}</p>
           </div>
           <span className="botanical-pill shrink-0">{plant.type === "edible" ? "Edible" : "Inedible"}</span>

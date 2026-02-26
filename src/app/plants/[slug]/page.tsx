@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PlantLinkShare } from "@/components/public/PlantLinkShare";
 import { PlantBlocksRenderer } from "@/components/public/PlantBlocksRenderer";
 import { getPublishedPlantBySlug } from "@/lib/data/plants";
 
@@ -43,6 +44,7 @@ export default async function PlantDetailPage({ params }: { params: PageParams }
 
         <main className="mt-6">
           <PlantBlocksRenderer type={plant.type} blocks={plant.blocks} />
+          <PlantLinkShare slug={plant.slug} />
         </main>
       </div>
     </div>
