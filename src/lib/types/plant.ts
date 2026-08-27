@@ -59,7 +59,6 @@ export interface PlantWithBlocks extends Plant {
 export interface PlantDocumentInput {
   id?: string;
   type: PlantType;
-  slug?: string;
   name: string;
   scientific_name: string;
   short_description: string;

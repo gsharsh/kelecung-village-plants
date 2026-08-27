@@ -40,7 +40,6 @@ export const plantBlockInputSchema = z.object({
 export const plantDocumentInputSchema = z.object({
   id: z.string().uuid().optional(),
   type: plantTypeSchema,
-  slug: z.string().max(160).optional(),
   name: z.string().max(160),
   scientific_name: z.string().max(220),
   short_description: z.string().max(500),
@@ -69,10 +68,6 @@ export function validatePlantForPublish(input: PlantDocumentInput) {
 
   if (!input.hero_image_url.trim()) {
     errors.push("Hero image is required.");
-  }
-
-  if (!input.slug?.trim()) {
-    errors.push("Slug is required.");
   }
 
   const aboutBlocks = input.blocks.filter((block) => block.block_kind === "about");
@@ -136,14 +131,6 @@ function validateInedibleRules(input: PlantDocumentInput, errors: string[]) {
     const parsed = inedibleUsePayloadSchema.safeParse(block.payload ?? {});
     if (!parsed.success) {
       errors.push("Use blocks must include a use type.");
-      break;
-    }
-
-    const hasDetails = Boolean(parsed.data.details?.trim());
-    const hasSteps = parsed.data.steps.length > 0;
-
-    if (!hasDetails && !hasSteps) {
-      errors.push("Each use block needs details text or at least one step.");
       break;
     }
   }

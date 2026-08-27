@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { BlockEditor } from "@/components/admin/BlockEditor";
+import { CopyLinkButton } from "@/components/CopyLinkButton";
 import type { EditableBlock } from "@/components/admin/types";
 import { PlantBlocksRenderer } from "@/components/public/PlantBlocksRenderer";
+import { normalizeSlug } from "@/lib/slug";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import {
   ALLOWED_BLOCK_KINDS_BY_TYPE,
@@ -17,7 +19,6 @@ import {
 
 interface PlantFormValues {
   type: PlantType;
-  slug: string;
   name: string;
   scientific_name: string;
   short_description: string;
@@ -68,8 +69,12 @@ export function PlantForm({ plantId, initialPlant, initialBlocks = [] }: PlantFo
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUploadingHero, setIsUploadingHero] = useState(false);
+  const [heroFileLabel, setHeroFileLabel] = useState("No file selected.");
+  const [siteOrigin, setSiteOrigin] = useState(() => (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/+$/, ""));
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const heroFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [blocks, setBlocks] = useState<EditableBlock[]>(() => {
     if (!initialBlocks.length) {
@@ -96,7 +101,6 @@ export function PlantForm({ plantId, initialPlant, initialBlocks = [] }: PlantFo
   } = useForm<PlantFormValues>({
     defaultValues: {
       type: initialPlant?.type ?? "edible",
-      slug: initialPlant?.slug ?? "",
       name: initialPlant?.name ?? "",
       scientific_name: initialPlant?.scientific_name ?? "",
       short_description: initialPlant?.short_description ?? "",
@@ -105,21 +109,29 @@ export function PlantForm({ plantId, initialPlant, initialBlocks = [] }: PlantFo
   });
 
   const currentType = watch("type");
-  const slugValue = watch("slug");
   const nameValue = watch("name");
   const scientificNameValue = watch("scientific_name");
   const shortDescriptionValue = watch("short_description");
   const heroImageUrl = watch("hero_image_url");
-  const slugLocked = Boolean(publishedAt);
+  const trimmedName = nameValue.trim();
+  const slugPreview = trimmedName ? normalizeSlug(trimmedName) : "yourplantname";
+  const linkPath = `/plants/${slugPreview}`;
+  const publicLink = siteOrigin ? `${siteOrigin}${linkPath}` : linkPath;
 
   useEffect(() => {
     setBlocks((previous) => previous.filter((block) => ALLOWED_BLOCK_KINDS_BY_TYPE[currentType].includes(block.block_kind)));
   }, [currentType]);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setSiteOrigin(window.location.origin);
+    }
+  }, []);
+
   const previewPlant = {
     id: plantId || "preview",
     type: currentType,
-    slug: slugValue,
+    slug: slugPreview,
     name: nameValue,
     scientific_name: scientificNameValue,
     short_description: shortDescriptionValue,
@@ -136,7 +148,7 @@ export function PlantForm({ plantId, initialPlant, initialBlocks = [] }: PlantFo
 
     const body = {
       scope,
-      plantId: plantId ?? `draft-${previewPlant.slug || "plant"}`,
+      plantId: plantId ?? `draft-${slugPreview || "plant"}`,
       blockId: blockClientId,
       fileName: file.name,
       mimeType: file.type,
@@ -178,12 +190,17 @@ export function PlantForm({ plantId, initialPlant, initialBlocks = [] }: PlantFo
   }
 
   async function onUploadHeroImage(file: File) {
+    setIsUploadingHero(true);
+    setHeroFileLabel(file.name);
+
     try {
       const url = await uploadFile(file, "hero");
       setValue("hero_image_url", url, { shouldDirty: true });
       setNotice("Hero image uploaded.");
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Failed to upload hero image.");
+    } finally {
+      setIsUploadingHero(false);
     }
   }
 
@@ -404,6 +421,24 @@ export function PlantForm({ plantId, initialPlant, initialBlocks = [] }: PlantFo
               <div className="mb-4"><h3 className="admin-section-title">Cover image</h3><p className="mt-1 text-xs text-[var(--ink-700)]">Use a clear landscape or portrait photo with the plant as the focus.</p></div>
               <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end"><div><label htmlFor="hero-image-url" className="field-label">Image URL <span aria-hidden="true">*</span></label><input id="hero-image-url" type="url" className="text-input" required placeholder="https://…" {...register("hero_image_url")} /></div><label className="secondary-btn min-h-[46px] cursor-pointer"><span aria-hidden="true">↑</span> Upload image<input className="sr-only" type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; void onUploadHeroImage(file); event.target.value = ""; }} /></label></div>
               {heroImageUrl ? <div className="mt-4 overflow-hidden rounded-xl border border-[var(--line)] bg-[var(--earth-100)]"><img src={heroImageUrl} alt="Selected cover preview" className="h-64 w-full object-cover" /></div> : <div className="mt-4 grid h-40 place-items-center rounded-xl border border-dashed border-[var(--line-strong)] bg-[var(--cream-100)] text-xs font-semibold text-[var(--ink-700)]">Your cover image will appear here</div>}
+            </div>
+
+            <div className="sm:col-span-2 rounded-xl border border-[var(--line)] bg-[var(--surface-1)] p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-700)]">
+                Public link preview
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <code className="rounded-md bg-white px-3 py-2 text-sm text-[var(--text-900)]">{publicLink}</code>
+                <CopyLinkButton
+                  value={publicLink}
+                  label="Copy link"
+                  className="px-3 py-2 text-sm"
+                  disabled={!trimmedName}
+                />
+              </div>
+              <p className="mt-2 text-xs text-[var(--text-700)]">
+                Plant names must be unique. The URL is generated automatically from the plant name.
+              </p>
             </div>
           </div>
         </section>

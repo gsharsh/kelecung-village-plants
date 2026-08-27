@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { assertAdminUser } from "@/lib/auth/admin";
 import { handleApiError, jsonError } from "@/lib/api";
-import { ensureUniqueSlug } from "@/lib/slug";
+import { normalizePlantName, normalizeSlug } from "@/lib/slug";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { ALLOWED_BLOCK_KINDS_BY_TYPE, type PlantDocumentInput } from "@/lib/types/plant";
 import { plantDocumentInputSchema, validatePlantForPublish } from "@/lib/validation/plant";
@@ -12,6 +12,21 @@ type RouteParams = Promise<{ id: string }>;
 function sanitizeBlocks(input: PlantDocumentInput) {
   const allowedKinds = ALLOWED_BLOCK_KINDS_BY_TYPE[input.type];
   return input.blocks.filter((block) => allowedKinds.includes(block.block_kind));
+}
+
+type ExistingPlantSummary = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+function hasNameConflict(plants: ExistingPlantSummary[], name: string, id: string) {
+  const normalizedIncomingName = normalizePlantName(name).toLowerCase();
+  return plants.some((plant) => plant.id !== id && normalizePlantName(plant.name).toLowerCase() === normalizedIncomingName);
+}
+
+function hasSlugConflict(plants: ExistingPlantSummary[], slug: string, id: string) {
+  return plants.some((plant) => plant.id !== id && plant.slug === slug);
 }
 
 export async function PATCH(request: Request, context: { params: RouteParams }) {
@@ -30,7 +45,7 @@ export async function PATCH(request: Request, context: { params: RouteParams }) 
 
     const { data: existingPlant, error: existingError } = await supabase
       .from("plants")
-      .select("id, slug, status, published_at")
+      .select("id, slug, status")
       .eq("id", id)
       .is("deleted_at", null)
       .maybeSingle();
@@ -45,28 +60,35 @@ export async function PATCH(request: Request, context: { params: RouteParams }) 
 
     const input: PlantDocumentInput = {
       ...parsed.data,
+      name: normalizePlantName(parsed.data.name),
       blocks: sanitizeBlocks(parsed.data),
     };
 
-    const incomingSlug = input.slug?.trim() || input.name;
+    const slug = normalizeSlug(input.name);
 
-    let slug = existingPlant.slug;
+    const { data: existingPlants, error: existingPlantsError } = await supabase
+      .from("plants")
+      .select("id, name, slug")
+      .is("deleted_at", null);
 
-    if (existingPlant.published_at) {
-      if (input.slug && input.slug.trim() !== existingPlant.slug) {
-        return jsonError(400, "Slug cannot be changed after first publish.");
-      }
-    } else {
-      slug = await ensureUniqueSlug(supabase, incomingSlug, id);
+    if (existingPlantsError) {
+      return jsonError(500, existingPlantsError.message);
+    }
+
+    const activePlants = (existingPlants ?? []) as ExistingPlantSummary[];
+
+    if (hasNameConflict(activePlants, input.name, id)) {
+      return jsonError(409, "Plant name must be unique.");
+    }
+
+    if (hasSlugConflict(activePlants, slug, id)) {
+      return jsonError(409, "This plant name creates a duplicate URL. Rename the plant slightly.");
     }
 
     const shouldValidatePublish = existingPlant.status === "published";
 
     if (shouldValidatePublish) {
-      const publishValidation = validatePlantForPublish({
-        ...input,
-        slug,
-      });
+      const publishValidation = validatePlantForPublish(input);
 
       if (!publishValidation.isValid) {
         return jsonError(400, "Cannot save published plant", publishValidation.errors);
@@ -123,6 +145,9 @@ export async function PATCH(request: Request, context: { params: RouteParams }) 
     }
 
     revalidatePath("/");
+    if (existingPlant.slug !== updatedPlant.slug) {
+      revalidatePath(`/plants/${existingPlant.slug}`);
+    }
     revalidatePath(`/plants/${updatedPlant.slug}`);
 
     return NextResponse.json(updatedPlant);

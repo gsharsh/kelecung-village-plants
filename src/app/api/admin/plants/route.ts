@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { assertAdminUser } from "@/lib/auth/admin";
 import { handleApiError, jsonError } from "@/lib/api";
-import { ensureUniqueSlug } from "@/lib/slug";
+import { normalizePlantName, normalizeSlug } from "@/lib/slug";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
 import { ALLOWED_BLOCK_KINDS_BY_TYPE, type PlantDocumentInput } from "@/lib/types/plant";
 import { plantDocumentInputSchema, validatePlantForPublish } from "@/lib/validation/plant";
@@ -10,6 +10,21 @@ import { plantDocumentInputSchema, validatePlantForPublish } from "@/lib/validat
 function sanitizeBlocks(input: PlantDocumentInput) {
   const allowedKinds = ALLOWED_BLOCK_KINDS_BY_TYPE[input.type];
   return input.blocks.filter((block) => allowedKinds.includes(block.block_kind));
+}
+
+type ExistingPlantSummary = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+function hasNameConflict(plants: ExistingPlantSummary[], name: string) {
+  const normalizedIncomingName = normalizePlantName(name).toLowerCase();
+  return plants.some((plant) => normalizePlantName(plant.name).toLowerCase() === normalizedIncomingName);
+}
+
+function hasSlugConflict(plants: ExistingPlantSummary[], slug: string) {
+  return plants.some((plant) => plant.slug === slug);
 }
 
 export async function GET() {
@@ -47,17 +62,32 @@ export async function POST(request: Request) {
     const supabase = createAdminSupabaseClient();
     const input: PlantDocumentInput = {
       ...parsed.data,
+      name: normalizePlantName(parsed.data.name),
       blocks: sanitizeBlocks(parsed.data),
     };
 
-    const slug = await ensureUniqueSlug(supabase, input.slug?.trim() || input.name);
+    const slug = normalizeSlug(input.name);
 
-    const publishCandidate: PlantDocumentInput = {
-      ...input,
-      slug,
-    };
+    const { data: existingPlants, error: existingPlantsError } = await supabase
+      .from("plants")
+      .select("id, name, slug")
+      .is("deleted_at", null);
 
-    const publishValidation = validatePlantForPublish(publishCandidate);
+    if (existingPlantsError) {
+      return jsonError(500, existingPlantsError.message);
+    }
+
+    const activePlants = (existingPlants ?? []) as ExistingPlantSummary[];
+
+    if (hasNameConflict(activePlants, input.name)) {
+      return jsonError(409, "Plant name must be unique.");
+    }
+
+    if (hasSlugConflict(activePlants, slug)) {
+      return jsonError(409, "This plant name creates a duplicate URL. Rename the plant slightly.");
+    }
+
+    const publishValidation = validatePlantForPublish(input);
     if (!publishValidation.isValid) {
       return jsonError(400, "Cannot save published plant", publishValidation.errors);
     }
