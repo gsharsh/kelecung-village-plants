@@ -9,8 +9,11 @@ import "@fontsource/plus-jakarta-sans/700.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Kelecung's Village",
-  description: "Discover edible and inedible village plants.",
+  title: {
+    default: "Kelecung Village Plant Guide",
+    template: "%s | Kelecung Village",
+  },
+  description: "Explore the edible, useful, and remarkable plants of Kelecung Village through a living local field guide.",
 };
 
 export default function RootLayout({

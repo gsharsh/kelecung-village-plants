@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AdminHeader } from "@/components/admin/AdminHeader";
 import { PlantForm } from "@/components/admin/PlantForm";
 import { assertAdminUser } from "@/lib/auth/admin";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
@@ -40,22 +41,12 @@ export default async function EditPlantPage({ params }: { params: PageParams }) 
   }
 
   return (
-    <div className="min-h-screen px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-3xl font-semibold text-[var(--text-900)]">Edit Plant</h1>
-          <div className="flex gap-2">
-            <Link href="/admin" className="secondary-btn">
-              Back to admin
-            </Link>
-            <Link href={`/plants/${plant.slug}`} className="secondary-btn">
-              View public page
-            </Link>
-          </div>
-        </div>
-
-        <PlantForm plantId={plant.id} initialPlant={plant} initialBlocks={blocks ?? []} />
-      </div>
+    <div className="admin-page">
+      <AdminHeader title={`Edit ${plant.name}`} description="Update the plant profile, arrange its content, and review the visitor preview before publishing." compact>
+        <Link href="/admin" className="rounded-xl border border-white/15 px-4 py-3 text-sm font-bold text-white/75 hover:bg-white/10 hover:text-white">← Plant library</Link>
+        <Link href={`/plants/${plant.slug}`} className="rounded-xl bg-white px-4 py-3 text-sm font-bold text-[var(--forest-950)] hover:bg-[var(--sage-100)]">View live page ↗</Link>
+      </AdminHeader>
+      <main className="mx-auto max-w-7xl px-5 py-7 sm:px-8 lg:px-10 lg:py-10"><PlantForm plantId={plant.id} initialPlant={plant} initialBlocks={blocks ?? []} /></main>
     </div>
   );
 }
