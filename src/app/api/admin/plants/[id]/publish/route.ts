@@ -42,7 +42,6 @@ export async function POST(_request: Request, context: { params: RouteParams }) 
 
     const publishCandidate: PlantDocumentInput = {
       type: plant.type,
-      slug: plant.slug,
       name: plant.name,
       scientific_name: plant.scientific_name,
       short_description: plant.short_description,
